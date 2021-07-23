@@ -1058,7 +1058,7 @@ void compile(vector<Token> tokenStream) {
                                             //If the state is already in list.
                                             if (state < bracketContainer.size()) {
                                                 double v = wcstod(bracketContainer.at(state).second, NULL) +
-                                                           wcstod(left->value,NULL);
+                                                           wcstod(left->value, NULL);
                                                 wchar_t *buffer = (wchar_t *) malloc(
                                                         sizeof(left->value) * 10);
                                                 swprintf(buffer, sizeof(left->value) * 10, L"%f", v);
@@ -1140,8 +1140,537 @@ void compile(vector<Token> tokenStream) {
                         break;
                     }
                     case SUB: {
-                        if (state == 1) {
+                        if (left == NULL || right == NULL) {
+                            perror("An operator must have both side");
+                            break;
+                        }
+                        if (right->type != STRING && (right->type == IDENTIFIER && findType(right->value) != STRING)) {
+                            Token *nextToken = j + 2 < tokenStream.size() ? &tokenStream.at(j + 2) : NULL;
+                            //If next token exists and there is MUL or DIV operator,which must be operated first.
+                            if (nextToken != NULL &&
+                                (nextToken->type == MUL || nextToken->type == DIV || nextToken->type == MOD)) {
+                                //If next token is an identifier.
+                                if (left->type == IDENTIFIER && valueExists(left->value) &&
+                                    getType(left->value) != STRING) {
+                                    //Then save current token value and move to MUL or DIV location.
+                                    //If in brackets.
+                                    if (state > 0) {
+                                        //Then save to bracket container.
+                                        //If the state already exists.
+                                        if (state < tokenStream.size()) {
+                                            if (bracketContainer.at(state).first == STRING) {
+                                                throw invalid_argument("Cannot subtract number from string");
+                                                wchar_t *value = wcscat(bracketContainer.at(state).second,
+                                                                        findValue(left->value));
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(STRING, value));
+                                            } else {
+                                                double v = wcstod(bracketContainer.at(state).second, NULL) -
+                                                           findDoubleValue(left->value);
+                                                wchar_t *buffer = (wchar_t *) malloc(sizeof(left->value) * 10);
+                                                swprintf(buffer, sizeof(left->value) * 10, L"%f", v);
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(DOUBLE, buffer));
+                                            }
+                                        } else {
+                                            bracketContainer.insert(bracketContainer.begin() + state,
+                                                                    pair<TokenType, wchar_t *>(DOUBLE,
+                                                                                               findValue(
+                                                                                                       left->value)[0] ==
+                                                                                               L'-' ? findValue(
+                                                                                                       left->value)
+                                                                                                    : wcscat(L"-",
+                                                                                                             findValue(
+                                                                                                                     left->value))));
+                                        }
+                                    } else {
+                                        //Then save to value container.
+                                        valueContainer.push_back(
+                                                pair<TokenType, wchar_t *>(DOUBLE, findValue(left->value)[0] == L'-'
+                                                                                   ? findValue(left->value) : wcscat(
+                                                                L"-", findValue(left->value))));
+                                    }
 
+                                }
+                                //If next token is an identifier and not string
+                                if (left->type == IDENTIFIER) {
+                                    //If value does not exists.
+                                    if (!valueExists(left->value)) {
+                                        //Throw error
+                                        throw invalid_argument("Expected variable but not found");
+                                    }
+                                    //Then save current token value and move to MUL or DIV location.
+                                    //If in brackets.
+                                    if (state > 0) {
+                                        //Then save to bracket container.
+                                        //If the state already exists.
+                                        if (state < tokenStream.size()) {
+                                            if (bracketContainer.at(state).first == STRING) {
+                                                throw invalid_argument("Cannot subtract number from string");
+                                                wchar_t *value = wcscat(bracketContainer.at(state).second,
+                                                                        findValue(left->value));
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(STRING, value));
+                                            } else {
+                                                if (findType(left->value) == STRING) {
+                                                    throw invalid_argument("Cannot subtract string from number");
+                                                    bracketContainer.insert(bracketContainer.begin() + state,
+                                                                            pair<TokenType, wchar_t *>(STRING,
+                                                                                                       wcscat(bracketContainer.at(
+                                                                                                               state).second,
+                                                                                                              findValue(
+                                                                                                                      left->value))));
+                                                } else {
+                                                    double v = wcstod(bracketContainer.at(state).second, NULL) -
+                                                               findDoubleValue(left->value);
+                                                    wchar_t *buffer = (wchar_t *) malloc(sizeof(left->value) * 10);
+                                                    swprintf(buffer, sizeof(left->value) * 10, L"%f", v);
+                                                    bracketContainer.insert(bracketContainer.begin() + state,
+                                                                            pair<TokenType, wchar_t *>(DOUBLE, buffer));
+                                                }
+
+                                            }
+
+                                        } else {
+                                            if (findType(left->value) == STRING) {
+                                                throw invalid_argument("Cannot subtract string from any");
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(STRING, findValue(
+                                                                                left->value)));
+                                            } else {
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(DOUBLE, findValue(
+                                                                                left->value)[0] == L'-' ? findValue(
+                                                                                left->value) : wcscat(L"-", findValue(
+                                                                                left->value))));
+                                            }
+
+                                        }
+                                    } else {
+                                        //Then save to value container.
+                                        valueContainer.push_back(pair<TokenType, wchar_t *>(DOUBLE,
+                                                                                            findValue(left->value)[0] ==
+                                                                                            L'-' ? findValue(
+                                                                                                    left->value)
+                                                                                                 : wcscat(L"-",
+                                                                                                          findValue(
+                                                                                                                  left->value))));
+                                    }
+
+                                } else {
+                                    //Then save current token value and move to MUL or DIV location.
+                                    //If in brackets.
+                                    if (state > 0) {
+                                        //Then save to bracket container.
+                                        //If the state already exists.
+                                        if (state < tokenStream.size()) {
+                                            if (bracketContainer.at(state).first == STRING) {
+                                                throw invalid_argument("Cannot subtract any from string");
+                                                wchar_t *value = wcscat(bracketContainer.at(state).second, left->value);
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(STRING, value));
+                                            } else {
+                                                if (left->type == STRING) {
+                                                    throw invalid_argument("Cannot subtract string from any");
+                                                    bracketContainer.insert(bracketContainer.begin() + state,
+                                                                            pair<TokenType, wchar_t *>(STRING,
+                                                                                                       wcscat(bracketContainer.at(
+                                                                                                               state).second,
+                                                                                                              left->value)));
+                                                } else {
+                                                    double v = wcstod(bracketContainer.at(state).second, NULL) -
+                                                               wcstod(left->value, NULL);
+                                                    wchar_t *buffer = (wchar_t *) malloc(sizeof(left->value) * 10);
+                                                    swprintf(buffer, sizeof(left->value) * 10, L"%f", v);
+                                                    bracketContainer.insert(bracketContainer.begin() + state,
+                                                                            pair<TokenType, wchar_t *>(DOUBLE, buffer));
+                                                }
+
+                                            }
+
+                                        } else {
+                                            if (left->type == STRING) {
+                                                throw invalid_argument("Cannot subtract string from any");
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(STRING,
+                                                                                                   left->value));
+                                            } else {
+                                                double v = -wcstod(left->value, NULL);
+                                                wchar_t *buffer = (wchar_t *) malloc(sizeof(left->value) * 10);
+                                                swprintf(buffer, sizeof(left->value) * 10, L"%f", v);
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(DOUBLE, buffer));
+                                            }
+                                        }
+                                    } else {
+                                        //Then save to value container.
+                                        if (left->type == STRING) {
+                                            throw invalid_argument("Cannot subtract string from any");
+                                            valueContainer.push_back(pair<TokenType, wchar_t *>(STRING, left->value));
+                                        } else {
+                                            valueContainer.push_back(pair<TokenType, wchar_t *>(DOUBLE,
+                                                                                                left->value[0] == L'-'
+                                                                                                ? left->value : wcscat(
+                                                                                                        L"-",
+                                                                                                        left->value)));
+                                        }
+
+                                    }
+                                }
+                                //Move to MUL or DIV location.
+                                j += 2;
+                                continue;
+                                //If there is no more MUL or DIV or MOD.
+                            } else if (nextToken != NULL) {
+                                //Then just save to container.
+                                if (left->type == IDENTIFIER) {
+                                    //It is an identifier but not exists then throw error.
+                                    if (!valueExists(left->value)) {
+                                        throw invalid_argument("Expected variable but not found");
+                                    }
+                                    //If in brackets.
+                                    if (state > 0) {
+                                        //Then save to bracket container.
+                                        //If there is value already.
+                                        if (state < tokenStream.size()) {
+                                            //If precedent value is string
+                                            if (bracketContainer.at(state).first == STRING) {
+                                                throw invalid_argument("Cannot subtract any from string");
+                                                //Then concat and save
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(STRING,
+                                                                                                   wcscat(bracketContainer.at(
+                                                                                                           state).second,
+                                                                                                          findValue(
+                                                                                                                  left->value))));
+                                            } else {
+                                                //If current token type is string
+                                                if (findType(left->value) == STRING) {
+                                                    throw invalid_argument("Cannot subtract string from any");
+                                                    //Then concat and save
+                                                    bracketContainer.insert(bracketContainer.begin() + state,
+                                                                            pair<TokenType, wchar_t *>(STRING,
+                                                                                                       wcscat(bracketContainer.at(
+                                                                                                               state).second,
+                                                                                                              findValue(
+                                                                                                                      left->value))));
+                                                } else {
+                                                    //Convert bracket container value and current value to double and add them.
+                                                    double v = wcstod(bracketContainer.at(state).second, NULL) -
+                                                               findDoubleValue(left->value);
+                                                    wchar_t *buffer = (wchar_t *) malloc(sizeof(left->value) * 10);
+                                                    swprintf(buffer, sizeof(left->value) * 10, L"%f", v);
+                                                    bracketContainer.insert(bracketContainer.begin() + state,
+                                                                            pair<TokenType, wchar_t *>(DOUBLE, buffer));
+                                                }
+                                            }
+
+                                        } else {
+                                            //If current token type is string
+                                            if (findType(left->value) == STRING) {
+                                                throw invalid_argument("Cannot subtract string from any");
+                                                //Then save as string
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(STRING,
+                                                                                                   findValue(
+                                                                                                           left->value)));
+                                            } else {
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(DOUBLE, findValue(
+                                                                                left->value)[0] == L'-' ? findValue(
+                                                                                left->value) : wcscat(L"-", findValue(
+                                                                                left->value))));
+                                            }
+                                        }
+                                    } else {
+                                        //It is not in bracket. Then just add to valueContainer.
+                                        //If current token type is string
+                                        if (findType(left->value) == STRING) {
+                                            throw invalid_argument("Cannot subtract string from any");
+                                            //Then save as string
+                                            valueContainer.insert(valueContainer.begin() + state,
+                                                                  pair<TokenType, wchar_t *>(STRING,
+                                                                                             findValue(left->value)));
+                                        } else {
+                                            //Then save as double
+                                            valueContainer.insert(valueContainer.begin() + state,
+                                                                  pair<TokenType, wchar_t *>(DOUBLE,
+                                                                                             findValue(
+                                                                                                     left->value)[0] ==
+                                                                                             L'-' ? findValue(
+                                                                                                     left->value)
+                                                                                                  : wcscat(L"-",
+                                                                                                           findValue(
+                                                                                                                   left->value))));
+                                        }
+                                    }
+                                    //It is not an identifier.
+                                } else {
+                                    //Then save current token value and move to MUL or DIV location.
+                                    //If in brackets.
+                                    if (state > 0) {
+                                        //Then save to bracket container.
+                                        //If the state already exists.
+                                        if (state < tokenStream.size()) {
+                                            if (bracketContainer.at(state).first == STRING) {
+                                                throw invalid_argument("Cannot subtract any from string");
+                                                wchar_t *value = wcscat(bracketContainer.at(state).second, left->value);
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(STRING, value));
+                                            } else {
+                                                if (left->type == STRING) {
+                                                    throw invalid_argument("Cannot subtract string from any");
+                                                    bracketContainer.insert(bracketContainer.begin() + state,
+                                                                            pair<TokenType, wchar_t *>(STRING,
+                                                                                                       wcscat(bracketContainer.at(
+                                                                                                               state).second,
+                                                                                                              left->value)));
+                                                } else {
+                                                    double v = wcstod(bracketContainer.at(state).second, NULL) -
+                                                               wcstod(left->value, NULL);
+                                                    wchar_t *buffer = (wchar_t *) malloc(sizeof(left->value) * 10);
+                                                    swprintf(buffer, sizeof(left->value) * 10, L"%f", v);
+                                                    bracketContainer.insert(bracketContainer.begin() + state,
+                                                                            pair<TokenType, wchar_t *>(DOUBLE, buffer));
+                                                }
+
+                                            }
+
+                                        } else {
+                                            if (left->type == STRING) {
+                                                throw invalid_argument("Cannot subtract string from any");
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(STRING,
+                                                                                                   left->value));
+                                            } else {
+                                                double v = -wcstod(left->value, NULL);
+                                                wchar_t *buffer = (wchar_t *) malloc(sizeof(left->value) * 10);
+                                                swprintf(buffer, sizeof(left->value) * 10, L"%f", v);
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(DOUBLE, buffer));
+                                            }
+                                        }
+                                    } else {
+                                        //Then save to value container.
+                                        if (left->type == STRING) {
+                                            throw invalid_argument("Cannot subtract string from any");
+                                            valueContainer.push_back(pair<TokenType, wchar_t *>(STRING, left->value));
+                                        } else {
+                                            valueContainer.push_back(pair<TokenType, wchar_t *>(DOUBLE,
+                                                                                                left->value[0] == L'-'
+                                                                                                ? left->value : wcscat(
+                                                                                                        L"-",
+                                                                                                        left->value)));
+                                        }
+
+                                    }
+                                }
+                            }
+                            //Left token type is string and right token type is not string
+                        } else if (left->type == STRING) {
+                            throw invalid_argument("Cannot subtract string from any");
+                            //If in brackets
+                            if (state > 0) {
+                                //If the state already exists
+                                if (state < bracketContainer.size()) {
+                                    bracketContainer.insert(bracketContainer.begin() + state,
+                                                            pair<TokenType, wchar_t *>(STRING,
+                                                                                       wcscat(bracketContainer.at(
+                                                                                               state).second,
+                                                                                              left->value)));
+                                } else {
+                                    bracketContainer.insert(bracketContainer.begin() + state,
+                                                            pair<TokenType, wchar_t *>(STRING, left->value));
+                                }
+                            } else {
+                                valueContainer.push_back(pair<TokenType, wchar_t *>(STRING, left->value));
+                            }
+                            //Left token type is not string and right token type is not string
+                        } else {
+                            //If type of left token is an identifier
+                            if (left->type == IDENTIFIER) {
+                                //If the identifier is not registered
+                                if (!valueExists(left->value)) {
+                                    //Throw error
+                                    throw invalid_argument("Expected variable but not found");
+                                }
+                                //If type of identifier is string
+                                if (findType(left->value) == STRING) {
+                                    throw invalid_argument("Cannot subtract string from any");
+                                    //If in brackets
+                                    if (state > 0) {
+                                        //If the state is already in list.
+                                        if (state < bracketContainer.size()) {
+                                            bracketContainer.insert(bracketContainer.begin() + state,
+                                                                    pair<TokenType, wchar_t *>(STRING,
+                                                                                               wcscat(bracketContainer.at(
+                                                                                                       state).second,
+                                                                                                      findValue(
+                                                                                                              left->value))));
+                                            //If not.
+                                        } else {
+                                            bracketContainer.insert(bracketContainer.begin() + state,
+                                                                    pair<TokenType, wchar_t *>(STRING,
+                                                                                               findValue(left->value)));
+                                        }
+                                    } else {
+                                        valueContainer.push_back(
+                                                pair<TokenType, wchar_t *>(STRING, findValue(left->value)));
+                                    }
+                                } else {
+                                    //If in brackets
+                                    if (state > 0) {
+                                        //If the state is already in list.
+                                        if (state < bracketContainer.size()) {
+                                            double v = wcstod(bracketContainer.at(state).second, NULL) -
+                                                       findDoubleValue(left->value);
+                                            wchar_t *buffer = (wchar_t *) malloc(sizeof(findValue(left->value)) * 10);
+                                            swprintf(buffer, sizeof(left->value) * 10, L"%f", v);
+                                            bracketContainer.insert(bracketContainer.begin() + state,
+                                                                    pair<TokenType, wchar_t *>(DOUBLE, buffer));
+                                            //If not.
+                                        } else {
+                                            bracketContainer.insert(bracketContainer.begin() + state,
+                                                                    pair<TokenType, wchar_t *>(DOUBLE,
+                                                                                               findValue(
+                                                                                                       left->value)[0] ==
+                                                                                               L'-' ? findValue(
+                                                                                                       left->value)
+                                                                                                    : wcscat(L"-",
+                                                                                                             findValue(
+                                                                                                                     left->value))));
+                                        }
+                                    } else {
+                                        valueContainer.push_back(
+                                                pair<TokenType, wchar_t *>(DOUBLE, findValue(left->value)[0] == L'-'
+                                                                                   ? findValue(left->value) : wcscat(
+                                                                L"-",
+                                                                findValue(left->value))));
+                                    }
+                                }
+                            } else {
+                                //If type of left token is an identifier
+                                if (left->type == IDENTIFIER) {
+                                    //If the identifier is not registered
+                                    if (!valueExists(left->value)) {
+                                        //Throw error
+                                        throw invalid_argument("Expected variable but not found");
+                                    }
+                                    //If type of identifier is string
+                                    if (findType(left->value) == STRING) {
+                                        throw invalid_argument("Cannot subtract string from any");
+                                        //If in brackets
+                                        if (state > 0) {
+                                            //If the state is already in list.
+                                            if (state < bracketContainer.size()) {
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(STRING,
+                                                                                                   wcscat(bracketContainer.at(
+                                                                                                           state).second,
+                                                                                                          findValue(
+                                                                                                                  left->value))));
+                                                //If not.
+                                            } else {
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(STRING,
+                                                                                                   findValue(
+                                                                                                           left->value)));
+                                            }
+                                        } else {
+                                            valueContainer.push_back(
+                                                    pair<TokenType, wchar_t *>(STRING, findValue(left->value)[0] == L'-'
+                                                                                       ? findValue(left->value)
+                                                                                       : wcscat(L"-",
+                                                                                                findValue(
+                                                                                                        left->value))));
+                                        }
+                                    } else {
+                                        //If in brackets
+                                        if (state > 0) {
+                                            //If the state is already in list.
+                                            if (state < bracketContainer.size()) {
+                                                double v = wcstod(bracketContainer.at(state).second, NULL) -
+                                                           findDoubleValue(left->value);
+                                                wchar_t *buffer = (wchar_t *) malloc(
+                                                        sizeof(findValue(left->value)) * 10);
+                                                swprintf(buffer, sizeof(findValue(left->value)) * 10, L"%f", v);
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(DOUBLE, buffer));
+                                                //If not.
+                                            } else {
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(DOUBLE,
+                                                                                                   findValue(
+                                                                                                           left->value)[0] ==
+                                                                                                   L'-' ? findValue(
+                                                                                                           left->value)
+                                                                                                        : wcscat(L"-",
+                                                                                                                 findValue(
+                                                                                                                         left->value))));
+                                            }
+                                        } else {
+                                            valueContainer.push_back(
+                                                    pair<TokenType, wchar_t *>(DOUBLE, findValue(left->value)[0] == L'-'
+                                                                                       ? findValue(left->value)
+                                                                                       : wcscat(L"-",
+                                                                                                findValue(
+                                                                                                        left->value))));
+                                        }
+                                    }
+                                } else {
+                                    //If type of identifier is string
+                                    if (left->type == STRING) {
+                                        throw invalid_argument("Cannot subtract string from any");
+                                        //If in brackets
+                                        if (state > 0) {
+                                            //If the state is already in list.
+                                            if (state < bracketContainer.size()) {
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(STRING,
+                                                                                                   wcscat(bracketContainer.at(
+                                                                                                           state).second,
+                                                                                                          left->value)));
+                                                //If not.
+                                            } else {
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(STRING,
+                                                                                                   left->value));
+                                            }
+                                        } else {
+                                            valueContainer.push_back(
+                                                    pair<TokenType, wchar_t *>(STRING, left->value));
+                                        }
+                                    } else {
+                                        //If in brackets
+                                        if (state > 0) {
+                                            //If the state is already in list.
+                                            if (state < bracketContainer.size()) {
+                                                double v = wcstod(bracketContainer.at(state).second, NULL) -
+                                                           wcstod(left->value, NULL);
+                                                wchar_t *buffer = (wchar_t *) malloc(
+                                                        sizeof(left->value) * 10);
+                                                swprintf(buffer, sizeof(left->value) * 10, L"%f", v);
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(DOUBLE, buffer));
+                                                //If not.
+                                            } else {
+                                                bracketContainer.insert(bracketContainer.begin() + state,
+                                                                        pair<TokenType, wchar_t *>(DOUBLE,
+                                                                                                   left->value[0] ==
+                                                                                                   L'-' ? left->value
+                                                                                                        : wcscat(L"-",
+                                                                                                                 left->value)));
+                                            }
+                                        } else {
+                                            valueContainer.push_back(
+                                                    pair<TokenType, wchar_t *>(DOUBLE,
+                                                                               left->value[0] == L'-' ? left->value
+                                                                                                      : wcscat(L"-",
+                                                                                                               left->value)));
+                                        }
+                                    }
+                                }
+                            }
                         }
                         break;
                     }
